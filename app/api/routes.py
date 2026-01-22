@@ -208,23 +208,21 @@ def compute_route():
 
 
 @bp.route('/routes', methods=['GET'])
+@jwt_required(optional=True)
 def list_routes():
     """
     List saved routes
     ---
     tags:
       - Routes
+    security:
+      - Bearer: []
+      - {}
+    description: |
+      Returns routes based on authentication status:
+      - **Not logged in**: Only public routes
+      - **Logged in**: Public routes + your own private routes
     parameters:
-      - name: public
-        in: query
-        type: boolean
-        required: false
-        description: Filter by public/private status
-      - name: ownerId
-        in: query
-        type: string
-        required: false
-        description: Filter by owner ID
       - name: limit
         in: query
         type: integer
@@ -265,20 +263,25 @@ def list_routes():
                   durationMillis:
                     type: number
     """
-    # Filter by public status
-    public = request.args.get('public', type=lambda x: x.lower() == 'true')
-    owner_id = request.args.get('ownerId')
+    current_user_id = get_jwt_identity()
 
     limit = min(request.args.get('limit', default=50, type=int), 500)
     offset = request.args.get('offset', default=0, type=int)
 
     query = Route.query
 
-    if public is not None:
-        query = query.filter(Route.public == public)
-
-    if owner_id:
-        query = query.filter(Route.owner_id == owner_id)
+    if current_user_id:
+        # Logged in: public routes + own private routes
+        from sqlalchemy import or_
+        query = query.filter(
+            or_(
+                Route.public == True,
+                Route.owner_id == current_user_id
+            )
+        )
+    else:
+        # Not logged in: only public routes
+        query = query.filter(Route.public == True)
 
     total = query.count()
     routes = query.order_by(Route.created_at.desc()).limit(limit).offset(offset).all()
@@ -298,6 +301,8 @@ def create_route():
     ---
     tags:
       - Routes
+    security:
+      - Bearer: []
     parameters:
       - name: body
         in: body
@@ -344,6 +349,8 @@ def create_route():
         description: Route created
       400:
         description: Bad request (missing/invalid fields)
+      401:
+        description: Unauthorized (missing/invalid token)
     """
     data = request.get_json()
 
@@ -393,12 +400,20 @@ def create_route():
 
 
 @bp.route('/routes/<string:route_id>', methods=['GET'])
+@jwt_required(optional=True)
 def get_route(route_id):
     """
     Get a single route by ID
     ---
     tags:
       - Routes
+    security:
+      - Bearer: []
+      - {}
+    description: |
+      Returns route if:
+      - Route is public, OR
+      - User is logged in and owns the route
     parameters:
       - name: route_id
         in: path
@@ -427,6 +442,8 @@ def get_route(route_id):
               type: object
             poiSequence:
               type: array
+      403:
+        description: Forbidden (private route you don't own)
       404:
         description: Route not found
     """
@@ -435,16 +452,24 @@ def get_route(route_id):
     if not route:
         return error_response('NOT_FOUND', f'Route with id {route_id} not found', 404)
 
+    # Check access: public routes are visible to all, private only to owner
+    current_user_id = get_jwt_identity()
+    if not route.public and route.owner_id != current_user_id:
+        return error_response('FORBIDDEN', 'This route is private', 403)
+
     return jsonify(route.to_dict()), 200
 
 
 @bp.route('/routes/<string:route_id>', methods=['PUT'])
+@jwt_required()
 def update_route(route_id):
     """
     Update a route (full replacement)
     ---
     tags:
       - Routes
+    security:
+      - Bearer: []
     parameters:
       - name: route_id
         in: path
@@ -478,6 +503,10 @@ def update_route(route_id):
         description: Route updated
       400:
         description: Bad request
+      401:
+        description: Unauthorized (missing/invalid token)
+      403:
+        description: Forbidden (not route owner)
       404:
         description: Route not found
     """
@@ -485,6 +514,11 @@ def update_route(route_id):
 
     if not route:
         return error_response('NOT_FOUND', f'Route with id {route_id} not found', 404)
+
+    # Check ownership
+    current_user_id = get_jwt_identity()
+    if route.owner_id != current_user_id:
+        return error_response('FORBIDDEN', 'You do not own this route', 403)
 
     data = request.get_json()
 
@@ -522,12 +556,15 @@ def update_route(route_id):
 
 
 @bp.route('/routes/<string:route_id>', methods=['PATCH'])
+@jwt_required()
 def patch_route(route_id):
     """
     Partially update a route
     ---
     tags:
       - Routes
+    security:
+      - Bearer: []
     parameters:
       - name: route_id
         in: path
@@ -551,6 +588,10 @@ def patch_route(route_id):
         description: Route updated
       400:
         description: Bad request
+      401:
+        description: Unauthorized (missing/invalid token)
+      403:
+        description: Forbidden (not route owner)
       404:
         description: Route not found
     """
@@ -559,12 +600,15 @@ def patch_route(route_id):
 
 
 @bp.route('/routes/<string:route_id>', methods=['DELETE'])
+@jwt_required()
 def delete_route(route_id):
     """
     Delete a route
     ---
     tags:
       - Routes
+    security:
+      - Bearer: []
     parameters:
       - name: route_id
         in: path
@@ -574,6 +618,10 @@ def delete_route(route_id):
     responses:
       204:
         description: Route deleted
+      401:
+        description: Unauthorized (missing/invalid token)
+      403:
+        description: Forbidden (not route owner)
       404:
         description: Route not found
     """
@@ -581,6 +629,11 @@ def delete_route(route_id):
 
     if not route:
         return error_response('NOT_FOUND', f'Route with id {route_id} not found', 404)
+
+    # Check ownership
+    current_user_id = get_jwt_identity()
+    if route.owner_id != current_user_id:
+        return error_response('FORBIDDEN', 'You do not own this route', 403)
 
     db.session.delete(route)
     db.session.commit()

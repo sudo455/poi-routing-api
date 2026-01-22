@@ -29,17 +29,18 @@ def create_app(config_name=None):
         'version': '1.0.0',
         'description': 'API for POI search and route planning in Corfu. '
                        'Use JWT authentication for protected endpoints.',
-        'termsOfService': None,
         'uiversion': 3,
         'securityDefinitions': {
             'Bearer': {
                 'type': 'apiKey',
                 'name': 'Authorization',
                 'in': 'header',
-                'description': 'JWT Authorization header. Format: "Bearer {token}"'
+                'description': 'Enter: Bearer <your_token>  (include the word Bearer followed by space)'
             }
         },
-        'security': [{'Bearer': []}]
+        'security': [{'Bearer': []}],
+        'specs_route': '/apidocs/',
+        'auth': {}  # Fix: prevents "None is not defined" JS error
     }
     swagger.init_app(app)
 

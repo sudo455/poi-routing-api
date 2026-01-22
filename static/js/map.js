@@ -526,64 +526,69 @@ async function saveRoute() {
     }
 }
 
-// Load current user's routes (requires login)
-async function loadMyRoutes() {
-    const container = document.getElementById('my-routes-list');
-    const section = document.getElementById('my-routes-section');
-    container.textContent = '';
+// Load all routes and split into sections
+async function loadAllRoutes() {
+    const myContainer = document.getElementById('my-routes-list');
+    const mySection = document.getElementById('my-routes-section');
+    const publicContainer = document.getElementById('public-routes-list');
 
+    myContainer.textContent = '';
+    publicContainer.textContent = '';
+
+    // Hide my routes section if not logged in
     if (!currentUser) {
-        section.style.display = 'none';
+        mySection.style.display = 'none';
+    } else {
+        mySection.style.display = 'block';
+    }
+
+    // Fetch all accessible routes (API handles filtering based on auth)
+    const data = await apiRequest('/routes');
+
+    if (!data || !data.results) {
+        showEmptyMessage(myContainer, 'No saved routes');
+        showEmptyMessage(publicContainer, 'No public routes');
         return;
     }
 
-    section.style.display = 'block';
+    // Split routes: my routes vs other users' public routes
+    const myRoutes = currentUser
+        ? data.results.filter(r => r.ownerId === currentUser.id)
+        : [];
 
-    const data = await apiRequest(`/routes?ownerId=${currentUser.id}`);
+    const otherPublicRoutes = currentUser
+        ? data.results.filter(r => r.public && r.ownerId !== currentUser.id)
+        : data.results.filter(r => r.public);
 
-    if (data && data.results && data.results.length > 0) {
-        data.results.forEach(route => {
-            const card = createRouteCard(route, true); // true = is owner
-            container.appendChild(card);
+    // Render my routes
+    if (currentUser) {
+        if (myRoutes.length > 0) {
+            myRoutes.forEach(route => {
+                const card = createRouteCard(route, true); // true = is owner
+                myContainer.appendChild(card);
+            });
+        } else {
+            showEmptyMessage(myContainer, 'No saved routes');
+        }
+    }
+
+    // Render public routes from others
+    if (otherPublicRoutes.length > 0) {
+        otherPublicRoutes.forEach(route => {
+            const card = createRouteCard(route, false); // false = not owner
+            publicContainer.appendChild(card);
         });
     } else {
-        const msg = document.createElement('p');
-        msg.className = 'empty-message';
-        msg.textContent = 'No saved routes';
-        container.appendChild(msg);
+        showEmptyMessage(publicContainer, 'No public routes from other users');
     }
 }
 
-// Load public routes from other users
-async function loadPublicRoutes() {
-    const container = document.getElementById('public-routes-list');
-    container.textContent = '';
-
-    const data = await apiRequest('/routes?public=true');
-
-    if (data && data.results && data.results.length > 0) {
-        // Filter out current user's routes if logged in
-        const otherUsersRoutes = currentUser
-            ? data.results.filter(r => r.ownerId !== currentUser.id)
-            : data.results;
-
-        if (otherUsersRoutes.length > 0) {
-            otherUsersRoutes.forEach(route => {
-                const card = createRouteCard(route, false); // false = not owner
-                container.appendChild(card);
-            });
-        } else {
-            const msg = document.createElement('p');
-            msg.className = 'empty-message';
-            msg.textContent = 'No public routes from other users';
-            container.appendChild(msg);
-        }
-    } else {
-        const msg = document.createElement('p');
-        msg.className = 'empty-message';
-        msg.textContent = 'No public routes';
-        container.appendChild(msg);
-    }
+// Helper to show empty message
+function showEmptyMessage(container, message) {
+    const msg = document.createElement('p');
+    msg.className = 'empty-message';
+    msg.textContent = message;
+    container.appendChild(msg);
 }
 
 // Create a route card element
@@ -656,8 +661,7 @@ async function updateRoute(routeId, updates) {
 
     if (data) {
         showToast('Route updated!', 'success');
-        loadMyRoutes();
-        loadPublicRoutes();
+        loadAllRoutes();
     }
 }
 
@@ -674,17 +678,10 @@ async function deleteRoute(routeId, routeName) {
 
     if (response.ok) {
         showToast('Route deleted!', 'success');
-        loadMyRoutes();
-        loadPublicRoutes();
+        loadAllRoutes();
     } else {
         showToast('Failed to delete route', 'error');
     }
-}
-
-// Load all routes (both sections)
-function loadAllRoutes() {
-    loadMyRoutes();
-    loadPublicRoutes();
 }
 
 async function loadRoute(routeId) {
