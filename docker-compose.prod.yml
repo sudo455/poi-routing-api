@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/dr3ff1c13nt/poi-routing-api:latest
+    image: ghcr.io/sudo455/poi-routing-api:latest
     container_name: poi-api
     environment:
       - FLASK_CONFIG=production
@@ -16,7 +16,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.poi-api.rule=Host(`poi-api.dr3ff1c13nt.com`)"
       - "traefik.http.routers.poi-api.entrypoints=websecure"
-      - "traefik.http.routers.poi-api.tls.certresolver=letsencrypt"
+      #- "traefik.http.routers.poi-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.poi-api.loadbalancer.server.port=5000"
     networks:
       - traefik-public
