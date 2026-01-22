@@ -1,0 +1,63 @@
+services:
+  api:
+    build: .
+    container_name: poi-api
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_CONFIG=development
+      - DATABASE_URL=postgresql+psycopg://poi_user:poi_password@db:5432/poi_db
+      - JWT_SECRET_KEY=dev-secret-change-in-production
+      - GRAPHHOPPER_URL=http://graphhopper:8989
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro
+      - ./static:/app/static:ro
+    networks:
+      - poi-network
+    restart: unless-stopped
+
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: poi-db
+    environment:
+      - POSTGRES_USER=poi_user
+      - POSTGRES_PASSWORD=poi_password
+      - POSTGRES_DB=poi_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - poi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poi_user -d poi_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  graphhopper:
+    image: israelhikingmap/graphhopper:latest
+    container_name: poi-graphhopper
+    environment:
+      - JAVA_OPTS=-Xmx4g -Xms1g
+    volumes:
+      - graphhopper_data:/data
+      - ./data/osm:/osm:ro
+    command: --input /osm/greece-latest.osm.pbf --host 0.0.0.0
+    ports:
+      - "8989:8989"
+    networks:
+      - poi-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  graphhopper_data:
+
+networks:
+  poi-network:
+    driver: bridge

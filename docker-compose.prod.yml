@@ -1,0 +1,71 @@
+services:
+  api:
+    image: ghcr.io/dr3ff1c13nt/poi-routing-api:latest
+    container_name: poi-api
+    environment:
+      - FLASK_CONFIG=production
+      - DATABASE_URL=postgresql+psycopg://poi_user:${DB_PASSWORD}@db:5432/poi_db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - GRAPHHOPPER_URL=http://graphhopper:8989
+    depends_on:
+      db:
+        condition: service_healthy
+      graphhopper:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.poi-api.rule=Host(`poi-api.dr3ff1c13nt.com`)"
+      - "traefik.http.routers.poi-api.entrypoints=websecure"
+      - "traefik.http.routers.poi-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.poi-api.loadbalancer.server.port=5000"
+    networks:
+      - traefik-public
+      - poi-internal
+    restart: unless-stopped
+
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: poi-db
+    environment:
+      - POSTGRES_USER=poi_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=poi_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - poi-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poi_user -d poi_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  graphhopper:
+    image: israelhikingmap/graphhopper:latest
+    container_name: poi-graphhopper
+    environment:
+      - JAVA_OPTS=-Xmx4g -Xms1g
+    volumes:
+      - graphhopper_data:/data
+      - ./data/osm:/osm:ro
+    command: --input /osm/greece-latest.osm.pbf --host 0.0.0.0
+    networks:
+      - poi-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8989/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  graphhopper_data:
+
+networks:
+  traefik-public:
+    external: true
+  poi-internal:
+    driver: bridge

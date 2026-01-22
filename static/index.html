@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corfu POI & Route Planner</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <div class="header-content">
+                    <h1>Corfu Explorer</h1>
+                    <p class="subtitle">POI & Route Planner</p>
+                </div>
+                <a href="/apidocs/" target="_blank" class="btn-api-docs" title="API Documentation">API Docs</a>
+            </header>
+
+            <!-- Auth Section -->
+            <section class="auth-section" id="auth-section">
+                <div id="login-form" class="auth-form">
+                    <h3>Login</h3>
+                    <input type="text" id="login-username" placeholder="Username">
+                    <input type="password" id="login-password" placeholder="Password">
+                    <button onclick="login()">Login</button>
+                    <p class="auth-switch">Don't have an account? <a href="#" onclick="showRegister()">Register</a></p>
+                </div>
+
+                <div id="register-form" class="auth-form hidden">
+                    <h3>Register</h3>
+                    <input type="text" id="register-username" placeholder="Username">
+                    <input type="email" id="register-email" placeholder="Email">
+                    <input type="password" id="register-password" placeholder="Password">
+                    <button onclick="register()">Register</button>
+                    <p class="auth-switch">Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+                </div>
+
+                <div id="user-info" class="user-info hidden">
+                    <p>Welcome, <span id="username-display"></span>!</p>
+                    <button onclick="logout()" class="btn-secondary">Logout</button>
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section class="search-section">
+                <h3>Search POIs</h3>
+                <input type="text" id="search-query" placeholder="Search..." onkeyup="debounceSearch()">
+                <select id="category-filter" onchange="searchPOIs()">
+                    <option value="">All Categories</option>
+                    <option value="tourism">Tourism</option>
+                    <option value="beach">Beach</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="cafe">Cafe</option>
+                    <option value="hotel">Hotel</option>
+                    <option value="museum">Museum</option>
+                    <option value="historic">Historic</option>
+                    <option value="viewpoint">Viewpoint</option>
+                </select>
+                <button onclick="searchPOIs()" class="btn-primary">Search</button>
+            </section>
+
+            <!-- Route Section -->
+            <section class="route-section">
+                <h3>Route Planner</h3>
+                <div id="route-waypoints" class="waypoints-list">
+                    <p class="empty-message">Click POIs on map to add waypoints</p>
+                </div>
+                <div class="route-actions">
+                    <button onclick="computeRoute()" class="btn-primary" id="compute-btn" disabled>
+                        Compute Route
+                    </button>
+                    <button onclick="clearRoute()" class="btn-secondary">Clear</button>
+                </div>
+                <div id="route-info" class="route-info hidden">
+                    <p><strong>Distance:</strong> <span id="route-distance"></span></p>
+                    <p><strong>Duration:</strong> <span id="route-duration"></span></p>
+                </div>
+                <div class="save-route hidden" id="save-route-section">
+                    <input type="text" id="route-name" placeholder="Route name">
+                    <label>
+                        <input type="checkbox" id="route-public"> Make public
+                    </label>
+                    <button onclick="saveRoute()" class="btn-primary">Save Route</button>
+                </div>
+            </section>
+
+            <!-- My Routes (logged in users only) -->
+            <section class="saved-routes-section" id="my-routes-section">
+                <h3>My Routes</h3>
+                <div id="my-routes-list" class="routes-list">
+                    <p class="empty-message">Login to see your routes</p>
+                </div>
+            </section>
+
+            <!-- Public Routes (visible to everyone) -->
+            <section class="saved-routes-section" id="public-routes-section">
+                <h3>Public Routes</h3>
+                <div id="public-routes-list" class="routes-list">
+                    <p class="empty-message">No public routes</p>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Map Container -->
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/static/js/map.js"></script>
+</body>
+</html>

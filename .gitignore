@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+.eggs/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-workspace
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files (large, download separately)
+data/osm/*.pbf
+data/osm/*.osm
+
+# Secrets (never commit)
+.env.local
+.env.production
+*.pem
+*.key
+
+# Docker volumes (local data)
+postgres_data/
+graphhopper_data/
+
+# Jupyter
+.ipynb_checkpoints/
